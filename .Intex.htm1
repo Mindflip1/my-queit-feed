@@ -1,0 +1,256 @@
+# my-queit-feed<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>خوراک آرام | The Quiet Feed</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getFirestore, collection, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        
+        window.firebase = {
+            initializeApp,
+            getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signOut,
+            getFirestore, collection, getDocs, query, orderBy, limit
+        };
+    </script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const checkFirebase = setInterval(() => {
+            if (window.firebase) {
+                clearInterval(checkFirebase);
+                renderApp();
+            }
+        }, 100);
+
+        function renderApp() {
+            const { useState, useEffect } = React;
+            const { initializeApp, getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signOut, getFirestore, collection, getDocs, query, orderBy, limit } = window.firebase;
+
+            const firebaseConfig = {
+              apiKey: "AIzaSyC2EM-BogV_vkS4aZSSpNaHyK-o_KPnLcI",
+              authDomain: "quiet-ceep-app.firebaseapp.com",
+              projectId: "quiet-ceep-app",
+              storageBucket: "quiet-ceep-app.firebasestorage.app",
+              messagingSenderId: "634923763955",
+              appId: "1:634923763955:web:fbda8a3dc22fd580000f86"
+            };
+
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            const googleProvider = new GoogleAuthProvider();
+
+            // --- کامپوننت صفحه اصلی (متصل به Firestore) ---
+            const HomePage = ({ user, onLogout }) => {
+              const [edition, setEdition] = useState(null);
+              const [loading, setLoading] = useState(true);
+              const [error, setError] = useState('');
+
+              useEffect(() => {
+                const fetchEdition = async () => {
+                  try {
+                    const editionsRef = collection(db, "editions");
+                    const q = query(editionsRef, orderBy("publicationDate", "desc"), limit(1));
+                    const querySnapshot = await getDocs(q);
+                    
+                    if (querySnapshot.empty) {
+                      setError("هنوز نسخه‌ای منتشر نشده است. لطفاً طبق راهنما، یک نسخه در پنل فایربیس ایجاد کنید.");
+                    } else {
+                      const latestEdition = querySnapshot.docs[0].data();
+                      latestEdition.publicationDate = new Date(latestEdition.publicationDate.seconds * 1000).toLocaleDateString('fa-IR');
+                      setEdition(latestEdition);
+                    }
+                  } catch (err) {
+                    console.error("Error fetching edition:", err);
+                    setError("خطا در دریافت اطلاعات از پایگاه داده. آیا کالکشن 'editions' را در Firestore ساخته‌اید؟");
+                  } finally {
+                    setLoading(false);
+                  }
+                };
+                fetchEdition();
+              }, []);
+
+              const getIconForType = (type) => {
+                const icons = {
+                  article: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+                  podcast: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                };
+                return icons[type] || null;
+              };
+
+              return (
+                <div className="w-full max-w-3xl mx-auto p-4 sm:p-6 md:p-8">
+                  <header className="flex justify-between items-center border-b border-gray-200 pb-6 mb-8">
+                    <div>
+                      <h1 className="text-3xl font-bold text-gray-900">خوراک آرام</h1>
+                      <p className="text-sm text-gray-500">خوش آمدید، {user.displayName || user.email}</p>
+                    </div>
+                    <button onClick={onLogout} className="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors">
+                      خروج
+                    </button>
+                  </header>
+                  
+                  {loading && <div className="text-center text-gray-500 mt-16">در حال بارگذاری محتوا...</div>}
+                  {error && <div className="text-center text-red-500 bg-red-100 p-4 rounded-lg mt-16">{error}</div>}
+                  
+                  {edition && (
+                    <>
+                      <div className="mb-12 text-center">
+                        <h2 className="text-2xl font-semibold text-gray-800">{edition.title}</h2>
+                        <p className="text-gray-500 mt-1">{edition.publicationDate}</p>
+                      </div>
+                      <main className="space-y-8">
+                        {edition.content.map((item) => (
+                          <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-6">
+                            <div className="flex items-start space-x-4 space-x-reverse">
+                              <div className="flex-shrink-0 mt-1">{getIconForType(item.type)}</div>
+                              <div>
+                                <span className="text-sm font-medium text-indigo-600 bg-indigo-50 py-1 px-2 rounded">{item.category}</span>
+                                <h3 className="text-xl font-bold text-gray-900 mt-3">{item.title}</h3>
+                                <p className="text-gray-600 mt-2">{item.summary}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </main>
+                    </>
+                  )}
+                </div>
+              );
+            };
+
+            // --- کامپوننت صفحه ورود با خطایابی بهتر ---
+            const AuthPage = () => {
+              const [isLogin, setIsLogin] = useState(true);
+              const [email, setEmail] = useState('');
+              const [password, setPassword] = useState('');
+              const [error, setError] = useState('');
+
+              const handleAuthAction = async (e) => {
+                e.preventDefault();
+                setError('');
+                try {
+                  if (isLogin) {
+                    await signInWithEmailAndPassword(auth, email, password);
+                  } else {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                  }
+                } catch (err) {
+                  switch (err.code) {
+                    case 'auth/email-already-in-use':
+                      setError('این ایمیل قبلاً ثبت‌نام کرده است. لطفاً وارد شوید.');
+                      break;
+                    case 'auth/weak-password':
+                      setError('رمز عبور باید حداقل ۶ کاراکتر باشد.');
+                      break;
+                    case 'auth/user-not-found':
+                    case 'auth/wrong-password':
+                      setError('ایمیل یا رمز عبور نامعتبر است.');
+                      break;
+                    default:
+                      setError('خطایی رخ داد. لطفاً دوباره تلاش کنید.');
+                      console.error("Authentication error:", err);
+                      break;
+                  }
+                }
+              };
+
+              const handleGoogleSignIn = async () => {
+                setError('');
+                try {
+                  await signInWithPopup(auth, googleProvider);
+                } catch (err) {
+                   switch (err.code) {
+                    case 'auth/popup-closed-by-user':
+                    case 'auth/cancelled-popup-request':
+                      // No error needed if user closes the popup
+                      break;
+                    default:
+                      setError("خطا در ورود با گوگل. لطفاً مطمئن شوید پاپ‌آپ مسدود نیست.");
+                      console.error("Google Sign-in error:", err);
+                      break;
+                  }
+                }
+              };
+
+              return (
+                <div className="min-h-screen flex items-center justify-center">
+                  <div className="w-full max-w-sm mx-auto">
+                    <div className="bg-white p-8 border border-gray-200 rounded-lg shadow-sm">
+                      <h2 className="text-2xl font-bold text-center text-gray-800 mb-2">{isLogin ? 'ورود' : 'ثبت‌نام'}</h2>
+                      <p className="text-center text-gray-500 mb-6">به خوراک آرام خوش آمدید</p>
+                      <form onSubmit={handleAuthAction}>
+                        <div className="mb-4">
+                          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">ایمیل</label>
+                          <input id="email" type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                        </div>
+                        <div className="mb-6">
+                          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">رمز عبور</label>
+                          <input id="password" type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                        </div>
+                        {error && <p className="text-red-500 text-xs text-center mb-4">{error}</p>}
+                        <button type="submit" className="w-full bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors">{isLogin ? 'ورود' : 'ثبت‌نام'}</button>
+                      </form>
+                      <div className="my-4 flex items-center"><div className="flex-grow border-t border-gray-300"></div><span className="flex-shrink mx-4 text-gray-400">یا</span><div className="flex-grow border-t border-gray-300"></div></div>
+                      <button onClick={handleGoogleSignIn} className="w-full flex items-center justify-center bg-white border border-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-50 transition-colors">
+                        <svg className="w-5 h-5 ml-2" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.42-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
+                        ادامه با گوگل
+                      </button>
+                      <p className="text-center text-sm text-gray-600 mt-8">
+                        {isLogin ? 'حساب کاربری ندارید؟' : 'قبلاً ثبت‌نام کرده‌اید؟'}
+                        <button onClick={() => setIsLogin(!isLogin)} className="font-bold text-indigo-600 hover:underline mr-1">{isLogin ? 'ثبت‌نام کنید' : 'وارد شوید'}</button>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            };
+
+            // Main App Component
+            const App = () => {
+              const [user, setUser] = useState(null);
+              const [loading, setLoading] = useState(true);
+
+              useEffect(() => {
+                const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+                  setUser(currentUser);
+                  setLoading(false);
+                });
+                return () => unsubscribe();
+              }, []);
+
+              const handleLogout = async () => {
+                await signOut(auth);
+              };
+
+              if (loading) {
+                return <div className="min-h-screen flex items-center justify-center"><p>در حال بارگذاری...</p></div>;
+              }
+
+              return user ? <HomePage user={user} onLogout={handleLogout} /> : <AuthPage />;
+            };
+
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(<App />);
+        }
+    </script>
+
+</body>
+</html>
+
